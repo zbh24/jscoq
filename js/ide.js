@@ -37,6 +37,15 @@ var Editor;
         this.editor.focus();
     };
 
+    JSCoqIDE.prototype.addImg = function(src, width, line, ch) {
+
+        var oImg = document.createElement("img");
+        oImg.src = src;
+        oImg.width = width;
+
+        this.editor._editor.addWidget({line: line, ch:ch}, oImg, false);
+    }
+
     JSCoqIDE.prototype.setupCoq = function() {
 
         var self = this;
@@ -74,6 +83,7 @@ var Editor;
     };
 
     JSCoqIDE.prototype.addToQueryBuffer = function(text) {
+
         var span = document.createElement('span');
         span.textContent = text;
         this.message_panel.insertBefore(span, this.message_panel.firstChild);
