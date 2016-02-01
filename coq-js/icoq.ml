@@ -33,6 +33,38 @@ type init_opts = {
 (* Enable dynamic compilation for now *)
 let dyn_comp = true
 
+(*************************************************************************)
+(* Timeout support                                                       *)
+(*************************************************************************)
+
+type timeout = { timeout : 'a. int -> (unit -> 'a) -> exn -> 'a }
+
+let mk_jscoq_timeout timeout exn =
+  let timeout_ms  = float_of_int (timeout * 1000) in
+  (* A faster implementation?? initial_ms = Js.Unsafe.global##_Date##now() *)
+  let date_now    = jsnew Js.date_now ()          in
+  let initial_ms  = ref date_now##getTime()       in
+  Printf.eprintf "Initializing Timeout at second: %f\n%!" !initial_ms;
+  fun () ->
+    let date_now   = jsnew Js.date_now () in
+    let current_ms = date_now##getTime()  in
+    Printf.eprintf "Checking timeout: %f vs %f\n%!" current_ms !initial_ms;
+    if current_ms -. !initial_ms > timeout_ms then raise exn
+
+let js_coq_timeout : Control.timeout =
+  { Control.timeout = fun timeout cmd ex ->
+        (* Set the control variables to check-for timeouts *)
+        Control.timeout_check     := true;
+        Control.timeout_check_fun := mk_jscoq_timeout timeout ex;
+        let res = cmd () in
+        Control.timeout_check := false;
+        res
+  }
+
+(*************************************************************************)
+(* Main API                                                              *)
+(*************************************************************************)
+
 (* The order of some of the steps is not 100% guaranteed to be correct
    for now... *)
 let init opts =
@@ -81,6 +113,9 @@ let init opts =
   (* Misc tweaks *)
   (* Vernacentries.enable_goal_printing := false; *)
   Vernacentries.qed_display_script   := false;
+
+  (* Set timeout handling *)
+  Control.set_timeout js_coq_timeout;
 
   (* Return the initial state of the STM *)
   Stm.get_current_state ()
